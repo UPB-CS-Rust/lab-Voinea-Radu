@@ -19,15 +19,15 @@
 //  - add a method "peek" so that "queue.peek()" returns the same thing as "queue.read()", but leaves the element in the queue
 
 struct RingBuffer {
-    data: [u8; 16],
+    data: Box<[u8]>,
     start: usize,
     end: usize,
 }
 
 impl RingBuffer {
-    fn new() -> RingBuffer {
+    fn new(size: usize) -> RingBuffer {
         RingBuffer {
-            data: [0; 16],
+            data: make_box(size),
             start: 0,
             end: 0,
         }
@@ -37,7 +37,14 @@ impl RingBuffer {
     /// it returns None if the queue was empty
 
     fn read(&mut self) -> Option<u8> {
-        todo!()
+        if self.end == self.start {
+            None
+        } else {
+            let output = Some(self.data[self.start]);
+            self.start += 1;
+            self.start %= self.data.len();
+            output
+        }
     }
 
     /// This function tries to put `value` on the queue; and returns true if this succeeds
@@ -53,6 +60,18 @@ impl RingBuffer {
             self.end = pos;
 
             true
+        }
+    }
+
+    fn has_room(&self) -> bool {
+        (self.end + 1) % self.data.len() != self.start
+    }
+
+    fn peek(&self) -> Option<u8> {
+        if self.end == self.start {
+            None
+        } else {
+            Some(self.data[self.start])
         }
     }
 }
@@ -75,12 +94,27 @@ impl Iterator for RingBuffer {
 }
 
 fn main() {
-    let mut queue = RingBuffer::new();
+    let mut queue = RingBuffer::new(16);
     assert!(queue.write(1));
     assert!(queue.write(2));
     assert!(queue.write(3));
     assert!(queue.write(4));
     assert!(queue.write(5));
+    assert!(queue.write(6));
+    assert!(queue.write(7));
+    assert!(queue.write(8));
+    assert!(queue.write(9));
+    assert!(queue.write(10));
+    assert!(queue.write(11));
+    assert!(queue.write(12));
+    assert!(queue.write(13));
+    assert!(queue.write(14));
+    assert!(queue.has_room());
+    assert!(queue.write(15));
+    assert!(!queue.has_room());
+    assert!(!queue.write(16)); // Maximum 15 elements
+    assert_eq!(queue.peek().unwrap(), 1);
+    assert_eq!(queue.peek().unwrap(), 1);
     for elem in queue {
         println!("{elem}");
     }
