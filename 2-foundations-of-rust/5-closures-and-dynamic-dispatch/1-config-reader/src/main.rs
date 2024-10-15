@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// An imaginary config file
 #[derive(Serialize, Deserialize, Debug)]
@@ -25,6 +25,21 @@ trait DeserializeConfig {
     fn deserialize<'a>(&self, contents: &'a str) -> Result<Config<'a>, Error>;
 }
 
+struct JsonDeserializer;
+struct YamlDeserializer;
+
+impl DeserializeConfig for JsonDeserializer {
+    fn deserialize<'a>(&self, contents: &'a str) -> Result<Config<'a>, Error> {
+        serde_json::from_str(contents).map_err(|error| Error::Json(error))
+    }
+}
+
+impl DeserializeConfig for YamlDeserializer {
+    fn deserialize<'a>(&self, contents: &'a str) -> Result<Config<'a>, Error> {
+        serde_yaml::from_str(contents).map_err(|error| Error::Yaml(error))
+    }
+}
+
 // TODO add some types that implement `DeserializeConfig`
 
 fn main() {
@@ -35,7 +50,7 @@ fn main() {
         return;
     };
     // Unwrapping is Ok as `path` was created from UTF-8 string, and so is the extension
-    let _extension = path.extension().map(|o| o.to_str().unwrap());
+    let extension = path.extension().map(|o| o.to_str().unwrap());
     let file_contents = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(e) => {
@@ -45,7 +60,14 @@ fn main() {
         }
     };
 
-    let config: Config = todo!("Deserialize `file_contents` using either serde_yaml or serde_json depending on the file extension. Use dynamic dispatch");
+    let deserializer: Box<dyn DeserializeConfig> = match extension {
+        Some("json") => Box::new(JsonDeserializer {}),
+        Some("yaml") => Box::new(YamlDeserializer {}),
+        Some("yml") => Box::new(YamlDeserializer {}),
+        _ => panic!("Unsupported extension")
+    };
+
+    let config = deserializer.deserialize(file_contents.as_str());
 
     println!("Config was: {config:?}");
 }
