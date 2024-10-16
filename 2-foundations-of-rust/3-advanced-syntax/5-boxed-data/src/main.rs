@@ -16,6 +16,8 @@ enum Expr {
     Const(i64),
     Add(Box<Expr>, Box<Expr>),
     Sub(Box<Expr>, Box<Expr>),
+    Mul(Box<Expr>, Box<Expr>),
+    Div(Box<Expr>, Box<Expr>),
     Var,
     Summation(Vec<Expr>),
 }
@@ -36,30 +38,38 @@ fn sub(x: Expr, y: Expr) -> Expr {
 }
 
 fn mul(x: Expr, y: Expr) -> Expr {
-    todo!()
+    Expr::Mul(Box::new(x), Box::new(y))
 }
 
 fn div(x: Expr, y: Expr) -> Expr {
-    todo!()
+    Expr::Div(Box::new(x), Box::new(y))
 }
 
-// ...
-
-fn eval(expr: &Expr, var: i64) -> i64 {
+fn eval(expr: &Expr, var: i64) -> Option<i64> {
     // this should return an Option<i64>
     use Expr::*;
     match expr {
-        Const(k) => *k,
-        Var => var,
-        Add(lhs, rhs) => eval(lhs, var) + eval(rhs, var),
-        Sub(lhs, rhs) => eval(lhs, var) - eval(rhs, var),
+        Const(k) => Some(*k),
+        Var => Some(var),
+        Add(lhs, rhs) => Some(eval(lhs, var)? + eval(rhs, var)?),
+        Sub(lhs, rhs) => Some(eval(lhs, var)? - eval(rhs, var)?),
+        Mul(lhs, rhs) => Some(eval(lhs, var)? * eval(rhs, var)?),
+        Div(lhs, rhs) => {
+            let right = eval(rhs, var)?;
+
+            if right == 0 {
+                return None;
+            }
+
+            Some(eval(lhs, var)? / right)
+        }
 
         Summation(exprs) => {
             let mut acc = 0;
             for e in exprs {
-                acc += eval(e, var);
+                acc += eval(e, var)?;
             }
-            acc
+            Some(acc)
         }
     }
 }
@@ -71,7 +81,7 @@ fn main() {
             "{:?} with Var = {} ==> {}",
             &expr,
             value,
-            eval(&expr, value)
+            eval(&expr, value).unwrap()
         );
     };
 
@@ -90,12 +100,15 @@ mod test {
     #[test]
     fn test_cases() {
         let x = 42;
-        assert_eq!(eval(&Const(5), x), 5);
-        assert_eq!(eval(&Var, x), 42);
-        assert_eq!(eval(&sub(Var, Const(5)), x), 37);
-        assert_eq!(eval(&sub(Var, Var), x), 0);
-        assert_eq!(eval(&add(sub(Var, Const(5)), Const(5)), x), 42);
-        assert_eq!(eval(&Summation(vec![Var, Const(1)]), x), 43);
+        assert_eq!(eval(&Const(5), x).unwrap(), 5);
+        assert_eq!(eval(&Var, x).unwrap(), 42);
+        assert_eq!(eval(&sub(Var, Const(5)), x).unwrap(), 37);
+        assert_eq!(eval(&sub(Var, Var), x).unwrap(), 0);
+        assert_eq!(eval(&add(sub(Var, Const(5)), Const(5)), x).unwrap(), 42);
+        assert_eq!(eval(&Summation(vec![Var, Const(1)]), x).unwrap(), 43);
+        assert_eq!(eval(&mul(Const(10), Const(2)), x).unwrap(), 20);
+        assert_eq!(eval(&div(Const(10), Const(2)), x).unwrap(), 5);
+        assert_eq!(eval(&div(Const(10), Const(0)), x), None);
     }
 }
 

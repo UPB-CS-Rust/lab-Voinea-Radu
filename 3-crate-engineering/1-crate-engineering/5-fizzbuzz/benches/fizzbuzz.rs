@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use exercise_b_3::fizz_buzz;
+use exercise_b_3::{fast_fizz_buzz, fizz_buzz};
 
 /// Benchmark [fizz_buzz] with several inputs
 /// 1 and 2, 16 and 113 are not divisible by 3 nor 5
@@ -11,7 +11,8 @@ fn bench_fizz_buzz(c: &mut Criterion) {
     let mut group = c.benchmark_group("fizzbuzz");
     for input in [1, 2, 3, 5, 15, 16, 40, 42, 45, 113].into_iter() {
         group.bench_with_input(BenchmarkId::from_parameter(input), &input, |b, input| {
-            b.iter(|| fizz_buzz(*input))
+            // b.iter(|| fizz_buzz(*input))
+            b.iter(|| fast_fizz_buzz(*input))
         });
     }
     group.finish();

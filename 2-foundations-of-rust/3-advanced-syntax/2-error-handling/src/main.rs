@@ -21,34 +21,55 @@
 // NOTE: You will (hopefully) discover that "?" doesn't work in this context, and the resulting code
 // is a bit explicit about the errors --- we can solve that with traits, next week!
 
-use std::io::{BufRead, self, Write};
+use std::io::{self, BufRead, Write};
+
 
 #[derive(Debug)]
-enum MyError{ InvalidName,IOError( io::Error),
+enum MyError {
+    InvalidName,
+    IOError(io::Error),
 }
 
-fn get_username( )
-->  String
+fn get_username()
+    -> Result<String, MyError>
 {
     print!("Username: ");
-    io::stdout().flush();
+    io::stdout().flush().map_err(|error| MyError::IOError(error))?;
 
-    let mut input=String::new();
-    io::stdin().lock().read_line(&mut input); input=input.trim().to_string();
+    let mut input = String::new();
+    io::stdin().lock().read_line(&mut input).map_err(|error| MyError::IOError(error))?;
+    input = input.trim().to_string();
 
     for c in input.chars()
     {
-	if !char::is_alphabetic(c) { panic!("that's not a valid name, try again"); }
+        if !char::is_alphabetic(c) {
+            Err(MyError::InvalidName)?;
+        }
     }
 
-if input.is_empty() {
-panic!("that's not a valid name, try again");
-}
+    if input.is_empty() {
+        Err(MyError::InvalidName)?;
+    }
 
-    input
+    Ok(input)
 }
 
 fn main() {
-    let name=get_username();
-    println!("Hello {name}!")
+    let mut name = get_username();
+    loop {
+        match name {
+            Ok(name) => {
+                println!("Hello {name}!");
+                break;
+            }
+            Err(MyError::InvalidName) => {
+                println!("Invalid username. Please try again");
+                name = get_username();
+            }
+            Err(MyError::IOError(err)) => {
+                eprintln!("{:?}", err);
+                break;
+            }
+        }
+    }
 }
