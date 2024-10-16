@@ -1,6 +1,5 @@
-use std::fmt::Display;
-
 use serde::{de::Visitor, Deserialize, Serialize};
+use std::fmt::Display;
 
 #[derive(Debug)]
 /// Error creating BSN
@@ -34,13 +33,42 @@ impl Bsn {
     /// Try to create a new BSN. Returns `Err` if the passed string
     /// does not represent a valid BSN
     pub fn try_from_string<B: ToString>(bsn: B) -> Result<Self, Error> {
-        todo!()
+        let bsn_string = bsn.to_string();
+
+        if Self::validate(bsn_string.as_str()).is_err() {
+            return Err(Error::InvalidBsn);
+        }
+
+        Ok(Self {
+            inner: bsn_string,
+        })
     }
 
     /// Check whether the passed string represents a valid BSN.
     //  Returns `Err` if the passed string does not represent a valid BSN
     pub fn validate(bsn: &str) -> Result<(), Error> {
-        todo!()
+        let bsn_string_len = bsn.len();
+
+        if bsn_string_len != 8 && bsn_string_len != 9 {
+            Err(Error::InvalidBsn)?;
+        }
+
+        let mut result: i32 = 0;
+        let mut multiplier: i32 = 9;
+
+        for char in bsn.chars() {
+            result += ((char as i32) - '0' as i32) * multiplier;
+            multiplier -= 1;
+            if multiplier == 1 {
+                multiplier = -1;
+            }
+        }
+
+        if result % 11 != 0 {
+            Err(Error::InvalidBsn)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -49,7 +77,7 @@ impl Serialize for Bsn {
     where
         S: serde::Serializer,
     {
-        todo!("Serialize `self.inner` into a `str`")
+        serializer.serialize_str(self.inner.as_str())
     }
 }
 
@@ -68,11 +96,31 @@ impl<'de> Deserialize<'de> for Bsn {
                 write!(formatter, "A string representing a valid BSN")
             }
 
-            // TODO: Override the correct `Visitor::visit_*` to validate the input and output a new `BSN`
-            // if the input represents a valid BSN. Note that we do not need to override all default methods
+            fn visit_str<E>(self, str: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error
+            {
+                self.visit_string(String::from(str))
+            }
+
+
+            fn visit_string<E>(self, str: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                let str_len = str.len();
+
+                if Bsn::validate(str.as_str()).is_err() {
+                    return Err(serde::de::Error::invalid_length(str_len, &self));
+                }
+
+                Ok(Bsn {
+                    inner: String::from(str)
+                })
+            }
         }
 
-        todo!("use `deserializer` to deserialize a str using a `BsnVisitor`");
+        Ok(deserializer.deserialize_any(BsnVisitor {})?)
     }
 }
 
